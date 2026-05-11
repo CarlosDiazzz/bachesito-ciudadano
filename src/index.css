@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+@theme {
+  --color-oaxaca-guinda: #691332;
+  --color-oaxaca-guinda-dark: #4d0d24;
+  --color-oaxaca-crema: #f4f1ea;
+  --color-oaxaca-crema-dark: #e8e3d5;
+  --color-oaxaca-oro: #bc955c;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  background-color: var(--color-oaxaca-crema);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
