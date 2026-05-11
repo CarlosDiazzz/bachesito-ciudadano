@@ -1,13 +1,20 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import logo from '../assets/logo.png'
 
-export default function ReportarBache() {
+export default function ReportarBache({ autoOpenCamera = false }) {
   const [foto, setFoto] = useState(null)
   const [preview, setPreview] = useState(null)
   const [form, setForm] = useState({ descripcion: '', calle: '', municipio: '', colonia: '' })
   const [enviado, setEnviado] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const fileRef = useRef()
+
+  useEffect(() => {
+    if (autoOpenCamera && fileRef.current) {
+      // trigger camera prompt
+      fileRef.current.click()
+    }
+  }, [autoOpenCamera])
 
   function handleFoto(e) {
     const file = e.target.files[0]
@@ -106,22 +113,35 @@ export default function ReportarBache() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => fileRef.current.click()}
-              className="w-full h-44 border-2 border-dashed border-oaxaca-oro/30 rounded-xl flex flex-col items-center justify-center gap-3 text-oaxaca-oro hover:bg-oaxaca-crema transition-colors"
-            >
-              <div className="w-12 h-12 bg-oaxaca-crema rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-oaxaca-guinda" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current.click()}
+                className="flex-1 h-44 border-2 border-dashed border-oaxaca-oro/30 rounded-xl flex flex-col items-center justify-center gap-3 text-oaxaca-oro hover:bg-oaxaca-crema transition-colors"
+              >
+                <div className="w-12 h-12 bg-oaxaca-crema rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-oaxaca-guinda" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-bold uppercase tracking-wide">Capturar Bache</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => fileRef.current.click()}
+                className="w-20 h-44 rounded-xl bg-white border border-oaxaca-crema-dark flex items-center justify-center shadow-md"
+                title="Elegir desde galería"
+              >
+                <svg className="w-6 h-6 text-oaxaca-oro" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M3 7l4-4h10l4 4" />
                 </svg>
-              </div>
-              <span className="text-sm font-bold uppercase tracking-wide">Capturar Bache</span>
-            </button>
+              </button>
+            </div>
           )}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
+          <input ref={fileRef} id="file-input" type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
         </section>
 
         {/* Ubicación */}

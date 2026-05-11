@@ -10,7 +10,7 @@ export default function SplashScreen({ onFinish }) {
     const timer = setTimeout(() => {
       setFadeOut(true)
       setTimeout(onFinish, 600)
-    }, 2500)
+    }, 800) // make splash shorter to go quicker to camera
     return () => clearTimeout(timer)
   }, [onFinish])
 

@@ -6,16 +6,17 @@ import SplashScreen from './components/SplashScreen'
 export default function App() {
   const [loading, setLoading] = useState(true)
   const [vista, setVista] = useState('reportar')
+  const [openCamera, setOpenCamera] = useState(false)
 
   if (loading) {
-    return <SplashScreen onFinish={() => setLoading(false)} />
+    return <SplashScreen onFinish={() => { setLoading(false); setOpenCamera(true) }} />
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1">
         {vista === 'reportar'
-          ? <ReportarBache />
+          ? <ReportarBache autoOpenCamera={openCamera} />
           : <MisReportes onNuevoReporte={() => setVista('reportar')} />
         }
       </div>
@@ -47,7 +48,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Espaciado para no tapar contenido con el nav */}
       <div className="h-16" />
     </div>
   )
