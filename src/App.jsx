@@ -1,14 +1,27 @@
 import { useState } from 'react'
 import ReportarBache from './pages/ReportarBache'
 import SplashScreen from './components/SplashScreen'
+import CameraView from './components/CameraView'
 
 export default function App() {
-  const [loading, setLoading] = useState(true)
-  const [openCamera, setOpenCamera] = useState(false)
+  const [view, setView] = useState('splash') // splash, camera, form
+  const [capturedPhoto, setCapturedPhoto] = useState(null)
 
-  if (loading) {
-    return <SplashScreen onFinish={() => { setLoading(false); setOpenCamera(true); }} />
+  if (view === 'splash') {
+    return <SplashScreen onFinish={() => setView('camera')} />
   }
 
-  return <ReportarBache autoOpenCamera={openCamera} />
+  if (view === 'camera') {
+    return (
+      <CameraView 
+        onCapture={(file, preview) => {
+          setCapturedPhoto({ file, preview })
+          setView('form')
+        }}
+        onCancel={() => setView('form')}
+      />
+    )
+  }
+
+  return <ReportarBache initialPhoto={capturedPhoto} onRetake={() => setView('camera')} />
 }
