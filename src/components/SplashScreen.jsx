@@ -10,7 +10,7 @@ export default function SplashScreen({ onFinish }) {
     const timer = setTimeout(() => {
       setFadeOut(true)
       setTimeout(onFinish, 600)
-    }, 800) // make splash shorter to go quicker to camera
+    }, 2500) // allow time to see the pulse
     return () => clearTimeout(timer)
   }, [onFinish])
 
@@ -20,7 +20,6 @@ export default function SplashScreen({ onFinish }) {
 
       <div className={`w-full px-4 flex flex-col items-center transition-all duration-1000 transform ${showContent ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
         <div className="relative w-full max-w-[320px] aspect-square flex items-center justify-center">
-          <div className="absolute inset-0 bg-oaxaca-guinda rounded-full animate-ping opacity-5 scale-75"></div>
           <img 
             src={logo} 
             alt="BachesITO Logo" 
