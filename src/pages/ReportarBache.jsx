@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import logo from '../assets/logo.png'
+import { getNotificationEnvironment, requestSystemNotificationPermission, sendTestSystemNotification } from '../utils/systemNotifications'
 
 export default function ReportarBache({ initialPhoto = null, onRetake }) {
   const [foto, setFoto] = useState(initialPhoto?.file || null)
@@ -7,6 +8,14 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
   const [form, setForm] = useState({ descripcion: '', calle: '', municipio: '', colonia: '' })
   const [enviado, setEnviado] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [notificationMessage, setNotificationMessage] = useState('')
+  const [notificationStatus, setNotificationStatus] = useState(() => {
+    if (typeof window === 'undefined') return 'unsupported'
+    const env = getNotificationEnvironment()
+    if (!env.supported) return 'unsupported'
+    if (!env.secure) return 'insecure'
+    return env.permission
+  })
   const fileRef = useRef()
 
   useEffect(() => {
@@ -30,6 +39,10 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setEnviando(true)
+    if (notificationStatus === 'default') {
+      const result = await requestSystemNotificationPermission()
+      setNotificationStatus(result.permission)
+    }
     await new Promise((r) => setTimeout(r, 1200))
     setEnviado(true)
     setEnviando(false)
@@ -40,6 +53,34 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     setPreview(null)
     setForm({ descripcion: '', calle: '', municipio: '', colonia: '' })
     setEnviado(false)
+  }
+
+  async function handleEnableNotifications() {
+    const result = await requestSystemNotificationPermission()
+    setNotificationStatus(result.permission)
+    if (result.permission === 'granted') {
+      await sendTestSystemNotification()
+      setNotificationMessage('Permiso otorgado y notificación de prueba enviada.')
+      return
+    }
+    if (result.permission === 'denied') {
+      setNotificationMessage('El permiso está bloqueado. Debes habilitar notificaciones en configuración del navegador.')
+      return
+    }
+    if (result.permission === 'insecure') {
+      setNotificationMessage('Para notificaciones del sistema necesitas abrir la app en HTTPS o localhost.')
+      return
+    }
+    if (result.permission === 'unsupported') {
+      setNotificationMessage('Este navegador no soporta notificaciones del sistema.')
+      return
+    }
+    setNotificationMessage('')
+  }
+
+  async function handleTestNotification() {
+    const sent = await sendTestSystemNotification()
+    setNotificationMessage(sent ? 'Notificación de prueba enviada.' : 'No se pudo enviar la notificación de prueba.')
   }
 
   const municipios = [
@@ -66,6 +107,26 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Reporte enviado</h2>
           <p className="text-gray-500 mb-6">Gracias por tu reporte. Las autoridades correspondientes lo atenderán.</p>
+          {notificationStatus !== 'granted' && (
+            <button
+              onClick={handleEnableNotifications}
+              className="w-full mb-3 border border-oaxaca-guinda text-oaxaca-guinda font-semibold py-3 rounded-xl transition-colors hover:bg-oaxaca-guinda/5"
+            >
+              Activar notificaciones del sistema
+            </button>
+          )}
+          {notificationStatus === 'granted' && (
+            <>
+              <p className="text-green-700 text-sm mb-3">Notificaciones activadas. Te avisaremos cuando tu reporte sea atendido.</p>
+              <button
+                onClick={handleTestNotification}
+                className="w-full mb-3 border border-green-600 text-green-700 font-semibold py-3 rounded-xl transition-colors hover:bg-green-50"
+              >
+                Enviar notificación de prueba
+              </button>
+            </>
+          )}
+          {notificationMessage && <p className="text-xs text-gray-600 mb-3">{notificationMessage}</p>}
           <button
             onClick={handleNuevo}
             className="w-full bg-oaxaca-guinda hover:bg-oaxaca-guinda-dark text-white font-semibold py-3 rounded-xl transition-colors shadow-lg"
