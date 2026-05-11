@@ -4,10 +4,11 @@ import SplashScreen from './components/SplashScreen'
 
 export default function App() {
   const [loading, setLoading] = useState(true)
+  const [openCamera, setOpenCamera] = useState(false)
 
   if (loading) {
-    return <SplashScreen onFinish={() => setLoading(false)} />
+    return <SplashScreen onFinish={() => { setLoading(false); setOpenCamera(true); }} />
   }
 
-  return <ReportarBache />
+  return <ReportarBache autoOpenCamera={openCamera} />
 }
