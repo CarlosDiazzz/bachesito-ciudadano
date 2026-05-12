@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import logo from '../assets/logo.png'
+import { requestSystemNotificationPermission, showSystemNotification } from '../utils/systemNotifications'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8001/api'
 
@@ -354,6 +355,14 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
       if (!res.ok) throw new Error(data.message ?? `Error ${res.status}`)
       setFolio(data.folio)
       setEnviado(true)
+      // Pedir permiso y notificar si el navegador lo soporta
+      await requestSystemNotificationPermission()
+      await showSystemNotification({
+        title: 'Reporte enviado',
+        body: `Tu reporte ${data.folio ?? ''} fue recibido. Te notificaremos cuando sea atendido.`,
+        tag: `reporte-enviado-${data.id}`,
+        data: { reporteId: data.id },
+      })
     } catch (e) {
       setErrorEnvio(e.message)
     } finally {

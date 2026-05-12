@@ -1,43 +1,97 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 export default function CameraView({ onCapture, onCancel }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
-  const [stream, setStream] = useState(null)
+  const streamRef = useRef(null)
   const [facingMode, setFacingMode] = useState('environment')
   const [error, setError] = useState(null)
+  const [isStarting, setIsStarting] = useState(true)
+
+  const stopCamera = useCallback(() => {
+    if (!streamRef.current) return
+    streamRef.current.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+  }, [])
+
+  const startCamera = useCallback(async () => {
+    setIsStarting(true)
+    setError(null)
+
+    const legacyGetUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia
+    const getUserMedia = navigator.mediaDevices?.getUserMedia
+      ? (constraints) => navigator.mediaDevices.getUserMedia(constraints)
+      : legacyGetUserMedia
+        ? (constraints) => new Promise((resolve, reject) => legacyGetUserMedia.call(navigator, constraints, resolve, reject))
+        : null
+
+    if (!getUserMedia) {
+      const insecureContext = !window.isSecureContext && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+      setError(
+        insecureContext
+          ? 'No se puede abrir la cámara en este sitio porque no es seguro (HTTPS). Usa https:// o localhost.'
+          : 'Tu navegador no permite abrir la cámara web. Puedes usar la cámara del dispositivo desde el botón de abajo.'
+      )
+      setIsStarting(false)
+      return
+    }
+
+    stopCamera()
+
+    const attempts = [
+      { video: { facingMode: { ideal: facingMode } }, audio: false },
+      { video: true, audio: false },
+    ]
+
+    let lastError = null
+
+    for (const constraints of attempts) {
+      try {
+        const newStream = await getUserMedia(constraints)
+        streamRef.current = newStream
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream
+          await videoRef.current.play().catch(() => {})
+        }
+        setIsStarting(false)
+        return
+      } catch (err) {
+        lastError = err
+        if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+          break
+        }
+      }
+    }
+
+    console.error('Error accessing camera:', lastError)
+    try {
+      const permission = await navigator.permissions?.query?.({ name: 'camera' })
+      if (permission?.state === 'denied') {
+        setError('Bloqueaste el permiso de cámara. Actívalo en la configuración del navegador.')
+      } else if (lastError?.name === 'NotFoundError' || lastError?.name === 'OverconstrainedError') {
+        setError('No se encontró una cámara disponible en este dispositivo. Puedes seleccionar una imagen de la galería.')
+      } else {
+        setError('No se pudo abrir la cámara. Intenta de nuevo o selecciona una imagen de la galería.')
+      }
+    } catch {
+      setError('No se pudo abrir la cámara. Intenta de nuevo o selecciona una imagen de la galería.')
+    }
+    setIsStarting(false)
+  }, [facingMode, stopCamera])
 
   useEffect(() => {
+    // Needed: initialize camera stream on mount/facing change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     startCamera()
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [facingMode])
-
-  async function startCamera() {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop())
-    }
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode },
-        audio: false
-      })
-      setStream(newStream)
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream
-      }
-    } catch (err) {
-      console.error("Error accessing camera:", err)
-      setError("No se pudo acceder a la cámara. Por favor verifica los permisos.")
-    }
-  }
+    return stopCamera
+  }, [startCamera, stopCamera])
 
   function capturePhoto() {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current || !canvasRef.current || !videoRef.current.videoWidth || !videoRef.current.videoHeight) return
     const video = videoRef.current
     const canvas = canvasRef.current
     canvas.width = video.videoWidth
@@ -46,6 +100,7 @@ export default function CameraView({ onCapture, onCancel }) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
     
     canvas.toBlob((blob) => {
+      if (!blob) return
       const file = new File([blob], "capture.jpg", { type: "image/jpeg" })
       onCapture(file, URL.createObjectURL(blob))
     }, 'image/jpeg', 0.8)
@@ -63,12 +118,22 @@ export default function CameraView({ onCapture, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-[110] bg-black flex flex-col items-center justify-center overflow-hidden">
-      {error ? (
+      {isStarting ? (
+        <div className="text-white text-center p-6">
+          <p className="mb-2">Abriendo cámara…</p>
+          <p className="text-sm text-white/70">Si tarda, revisa permisos del navegador.</p>
+        </div>
+      ) : error ? (
         <div className="text-white text-center p-6">
           <p className="mb-4">{error}</p>
-          <button onClick={() => fileInputRef.current.click()} className="bg-oaxaca-guinda px-6 py-3 rounded-xl font-bold uppercase tracking-widest">
-            Elegir de Galería
-          </button>
+          <div className="flex flex-col items-center gap-3">
+            <button onClick={startCamera} className="bg-white/15 border border-white/20 px-6 py-3 rounded-xl font-bold uppercase tracking-widest">
+              Reintentar cámara
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="bg-oaxaca-guinda px-6 py-3 rounded-xl font-bold uppercase tracking-widest">
+              Abrir cámara/galería
+            </button>
+          </div>
         </div>
       ) : (
         <video 
@@ -120,6 +185,7 @@ export default function CameraView({ onCapture, onCancel }) {
         ref={fileInputRef}
         type="file" 
         accept="image/*" 
+        capture="environment"
         className="hidden" 
         onChange={handleGallery}
       />
