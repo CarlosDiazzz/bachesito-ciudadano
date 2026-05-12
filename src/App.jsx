@@ -4,6 +4,7 @@ import MisReportes from './pages/MisReportes'
 import SplashScreen from './components/SplashScreen'
 import CameraView from './components/CameraView'
 import { useReporteStatusNotifications } from './hooks/useReporteStatusNotifications'
+import InstallGuide from './components/InstallGuide'
 
 export default function App() {
   const [view, setView] = useState('splash') // splash, camera, form, mis-reportes
@@ -35,6 +36,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <InstallGuide />
       <div className="flex-1">
         {view === 'form'
           ? <ReportarBache initialPhoto={capturedPhoto} onRetake={() => setView('camera')} />
