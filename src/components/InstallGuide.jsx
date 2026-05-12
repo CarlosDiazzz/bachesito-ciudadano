@@ -1,4 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
+import { 
+  Globe, 
+  Share, 
+  PlusSquare, 
+  CheckCircle2, 
+  MoreVertical, 
+  Download, 
+  Smartphone, 
+  Info,
+  AlertCircle
+} from 'lucide-react'
 
 const STORAGE_KEY = 'bachesito.pwa.guide'
 
@@ -18,25 +29,25 @@ const PASOS = {
   ios: [
     {
       num: '1',
-      emoji: '🌐',
+      icon: <Globe className="w-5 h-5 text-blue-500" />,
       titulo: 'Abre esta página en Safari',
       desc: 'La instalación solo funciona desde Safari. Si usas Chrome u otro navegador, cópiala y pégala en Safari.',
     },
     {
       num: '2',
-      emoji: '⬆️',
+      icon: <Share className="w-5 h-5 text-blue-500" />,
       titulo: 'Toca el botón "Compartir"',
       desc: 'Es el ícono de cuadro con una flecha hacia arriba, en la barra inferior del navegador.',
     },
     {
       num: '3',
-      emoji: '📲',
+      icon: <PlusSquare className="w-5 h-5 text-blue-500" />,
       titulo: 'Selecciona "Agregar a inicio"',
       desc: 'Desplázate hacia abajo en el menú. Busca "Agregar a pantalla de inicio" y tócalo.',
     },
     {
       num: '4',
-      emoji: '✅',
+      icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
       titulo: 'Confirma tocando "Agregar"',
       desc: 'El ícono de BachesITO aparecerá en tu pantalla de inicio como cualquier app.',
     },
@@ -44,25 +55,25 @@ const PASOS = {
   android: [
     {
       num: '1',
-      emoji: '🌐',
+      icon: <Globe className="w-5 h-5 text-blue-500" />,
       titulo: 'Abre esta página en Chrome',
       desc: 'Asegúrate de usar Google Chrome. Si usas otro navegador, copia la URL y pégala en Chrome.',
     },
     {
       num: '2',
-      emoji: '⋮',
+      icon: <MoreVertical className="w-5 h-5 text-gray-600" />,
       titulo: 'Toca el menú de tres puntos',
-      desc: 'El ícono "⋮" está en la esquina superior derecha de Chrome.',
+      desc: 'El ícono de menú está en la esquina superior derecha de Chrome.',
     },
     {
       num: '3',
-      emoji: '📥',
+      icon: <Download className="w-5 h-5 text-blue-500" />,
       titulo: 'Toca "Instalar app" o "Agregar a pantalla de inicio"',
       desc: 'La opción aparece en el menú desplegable. Algunos dispositivos muestran un banner automático.',
     },
     {
       num: '4',
-      emoji: '✅',
+      icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
       titulo: 'Confirma la instalación',
       desc: 'La app se instalará y aparecerá en tu cajón de aplicaciones y pantalla de inicio.',
     },
@@ -70,19 +81,19 @@ const PASOS = {
   otro: [
     {
       num: '1',
-      emoji: '🌐',
+      icon: <Globe className="w-5 h-5 text-blue-500" />,
       titulo: 'Abre esta página en Chrome o Edge',
       desc: 'Estos navegadores permiten instalar aplicaciones web en tu dispositivo.',
     },
     {
       num: '2',
-      emoji: '⋮',
+      icon: <MoreVertical className="w-5 h-5 text-gray-600" />,
       titulo: 'Busca la opción de instalación',
-      desc: 'En Chrome: menú ⋮ → "Instalar BachesITO". En Edge: menú … → "Aplicaciones" → "Instalar".',
+      desc: 'En Chrome: menú de tres puntos → "Instalar BachesITO". En Edge: menú → "Aplicaciones" → "Instalar".',
     },
     {
       num: '3',
-      emoji: '✅',
+      icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
       titulo: 'Confirma la instalación',
       desc: 'La app quedará disponible sin necesidad de abrir el navegador.',
     },
@@ -124,10 +135,10 @@ export default function InstallGuide() {
     }
   }, [])
 
-  function cerrar(parámetro) {
+  function cerrar(param) {
     setAnimando(false)
     setTimeout(() => setVisible(false), 300)
-    if (parámetro === 'never') {
+    if (param === 'never') {
       localStorage.setItem(STORAGE_KEY, 'never')
     }
   }
@@ -188,9 +199,9 @@ export default function InstallGuide() {
               width: 52, height: 52, borderRadius: 14, flexShrink: 0,
               background: 'rgba(255,255,255,0.18)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 26, border: '2px solid rgba(255,255,255,0.25)',
+              border: '2px solid rgba(255,255,255,0.25)',
             }}>
-              🕳️
+              <AlertCircle className="w-7 h-7 text-white" />
             </div>
             <div>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', margin: '0 0 2px' }}>
@@ -209,8 +220,8 @@ export default function InstallGuide() {
         {/* Tabs iOS / Android */}
         <div className="flex border-b border-gray-100 bg-white sticky top-0 z-10">
           {[
-            { id: 'android', emoji: '🤖', label: 'Android' },
-            { id: 'ios',     emoji: '🍎', label: 'iPhone / iPad' },
+            { id: 'android', label: 'Android' },
+            { id: 'ios',     label: 'iPhone / iPad' },
           ].map(t => (
             <button
               key={t.id}
@@ -223,7 +234,7 @@ export default function InstallGuide() {
                 marginBottom: -1,
               }}
             >
-              <span style={{ fontSize: 16 }}>{t.emoji}</span> {t.label}
+              <Smartphone className="w-4 h-4" /> {t.label}
               {t.id === plataforma && (
                 <span style={{
                   fontSize: 9, fontWeight: 800, background: '#691332', color: 'white',
@@ -244,9 +255,8 @@ export default function InstallGuide() {
                 width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
                 background: '#F4F1EA', border: '2px solid #e8e0d5',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20,
               }}>
-                {paso.emoji}
+                {paso.icon}
               </div>
               <div className="flex-1 pt-1">
                 <p className="text-sm font-bold text-gray-800 mb-0.5 leading-snug">
@@ -268,7 +278,7 @@ export default function InstallGuide() {
             >
               {instalando
                 ? <><span className="inline-block w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Instalando…</>
-                : <>📲 Instalar BachesITO ahora</>
+                : <><Download className="w-4 h-4" /> Instalar BachesITO ahora</>
               }
             </button>
           )}
@@ -277,7 +287,7 @@ export default function InstallGuide() {
         {/* Nota iOS Safari */}
         {tabActivo === 'ios' && (
           <div className="mx-6 mt-2 mb-1 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex gap-2.5 items-start">
-            <span className="text-base shrink-0 mt-0.5">ℹ️</span>
+            <Info className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" />
             <p className="text-xs text-blue-700 leading-relaxed font-medium">
               Apple solo permite instalar apps web desde <strong>Safari</strong>. Si ves este mensaje en Chrome u otro navegador, copia la URL y ábrela en Safari.
             </p>

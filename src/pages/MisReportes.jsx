@@ -1,4 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { 
+  Map as MapIcon, 
+  List as ListIcon, 
+  AlertTriangle, 
+  CheckCircle2, 
+  MapPin, 
+  Camera, 
+  Info,
+  ImageOff
+} from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -9,7 +19,12 @@ function resolveUrl(url) {
 }
 
 const PRIO_COLOR  = { critica: '#9D2449', alta: '#C05621', media: '#B7791F', baja: '#276749' }
-const PRIO_EMOJI  = { critica: '🔴', alta: '🟠', media: '🟡', baja: '🟢' }
+
+const SevIcon = ({ priority, className }) => {
+  const colors = { critica: 'text-red-700', alta: 'text-orange-600', media: 'text-amber-500', baja: 'text-green-600' }
+  return <div className={`w-3 h-3 rounded-full bg-current ${colors[priority] || 'text-gray-400'} ${className}`} />
+}
+
 const ESTADO_CFG  = {
   pendiente:  { label: 'Pendiente',  cls: 'bg-yellow-100 text-yellow-800' },
   validado:   { label: 'Validado',   cls: 'bg-blue-100 text-blue-800' },
@@ -24,7 +39,6 @@ const PLACEHOLDER = 'https://placehold.co/400x300/E2E8F0/94A3B8?text=Sin+foto'
 
 function popupHtml(r) {
   const color  = PRIO_COLOR[r.prioridad] ?? '#4A5568'
-  const emoji  = PRIO_EMOJI[r.prioridad] ?? '⚪'
   const estado = ESTADO_CFG[r.estado]    ?? { label: r.estado }
   const foto   = r.foto && !r.foto.includes('placehold') ? resolveUrl(r.foto) : null
 
@@ -35,7 +49,10 @@ function popupHtml(r) {
       <div style="font-weight:700;font-size:13px;color:#1a202c;margin-bottom:3px;line-height:1.3">${r.nombre_via ?? 'Sin nombre'}</div>
       <div style="font-size:11px;color:#5A6080;margin-bottom:6px">${[r.colonia, r.municipio].filter(Boolean).join(' · ')}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:11px;font-weight:600;color:${color}">${emoji} ${r.prioridad ?? ''}</span>
+        <span style="font-size:11px;font-weight:600;color:${color};display:flex;align-items:center;gap:4px">
+          <span style="width:8px;height:8px;border-radius:50%;background:currentColor"></span>
+          ${r.prioridad ?? ''}
+        </span>
         <span style="font-size:10px;background:#F1F5F9;color:#475569;padding:1px 7px;border-radius:99px;font-weight:600">${estado.label}</span>
       </div>
       ${r.descripcion ? `<div style="font-size:11px;color:#64748B;margin-top:5px;line-height:1.4;border-top:1px solid #F1F5F9;padding-top:5px">${r.descripcion.slice(0,90)}${r.descripcion.length>90?'…':''}</div>` : ''}
@@ -101,8 +118,10 @@ function MapaLeaflet({ reportes, seleccionado, onSelect }) {
           background:${color};border:2.5px solid white;
           box-shadow:0 2px 7px rgba(0,0,0,0.3);
           display:flex;align-items:center;justify-content:center;
-          font-size:13px;
-        ">🕳</div>`,
+          color:white;
+        ">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        </div>`,
         className: '',
         iconSize: [30, 30],
         iconAnchor: [15, 15],
@@ -174,7 +193,7 @@ function PanelZona({ reportes }) {
   return (
     <div className={`rounded-2xl overflow-hidden border shadow-sm ${alerta ? 'border-red-200' : 'border-emerald-200'}`}>
       <div className={`px-4 py-2.5 flex items-center gap-2 ${alerta ? 'bg-red-50' : 'bg-emerald-50'}`}>
-        <span>{alerta ? '⚠️' : '✅'}</span>
+        {alerta ? <AlertTriangle className="w-4 h-4 text-red-600" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
         <p className={`text-xs font-bold flex-1 ${alerta ? 'text-red-700' : 'text-emerald-700'}`}>
           {alerta ? 'Zona con daños importantes' : 'Zona en buen estado'}
         </p>
@@ -190,14 +209,17 @@ function PanelZona({ reportes }) {
         {zonas_criticas?.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {zonas_criticas.map((z, i) => (
-              <span key={i} className="bg-oaxaca-guinda/10 text-oaxaca-guinda text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                📍 {z}
+              <span key={i} className="bg-oaxaca-guinda/10 text-oaxaca-guinda text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                <MapPin className="w-3 h-3" /> {z}
               </span>
             ))}
           </div>
         )}
         {consejo && (
-          <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2 border-l-2 border-oaxaca-oro">{consejo}</p>
+          <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2 border-l-2 border-oaxaca-oro flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-oaxaca-oro" />
+            <span>{consejo}</span>
+          </p>
         )}
       </div>
     </div>
@@ -299,8 +321,9 @@ function DetalleSheet({ reporte, onClose }) {
         {fotos.length > 0
           ? <GaleriaFotos fotos={fotos} />
           : (
-            <div className="h-36 flex items-center justify-center bg-gray-100 text-gray-300 text-6xl">
-              🕳
+            <div className="h-36 flex flex-col items-center justify-center bg-gray-100 text-gray-300 gap-2">
+              <ImageOff className="w-10 h-10" />
+              <span className="text-xs font-bold uppercase tracking-widest">Sin fotos</span>
             </div>
           )
         }
@@ -327,14 +350,14 @@ function DetalleSheet({ reporte, onClose }) {
           </div>
 
           <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
-            <span className="text-xl">{PRIO_EMOJI[reporte.prioridad] ?? '⚪'}</span>
+            <SevIcon priority={reporte.prioridad} className="w-5 h-5" />
             <div>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Prioridad</p>
               <p className="text-sm font-bold capitalize" style={{ color }}>{reporte.prioridad}</p>
             </div>
             {fotos.length > 0 && (
-              <span className="ml-auto text-[11px] text-gray-400 font-semibold">
-                📷 {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
+              <span className="ml-auto text-[11px] text-gray-400 font-semibold flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5" /> {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
               </span>
             )}
           </div>
@@ -350,7 +373,7 @@ function DetalleSheet({ reporte, onClose }) {
 
           {reporte.direccion_aproximada && (
             <p className="text-xs text-gray-400 flex gap-1.5 items-start">
-              <span className="shrink-0">📍</span>
+              <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <span>{reporte.direccion_aproximada}</span>
             </p>
           )}
@@ -391,8 +414,8 @@ function ReporteCard({ reporte, activo, onClick, onVerFotos }) {
         >
           <img src={foto} alt="" className="w-full h-32 object-cover" onError={e => e.target.style.display = 'none'} />
           {numFotos > 1 && (
-            <span className="absolute top-2 right-2 bg-black/55 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
-              📷 {numFotos}
+            <span className="absolute top-2 right-2 bg-black/55 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm flex items-center gap-1">
+              <Camera className="w-3 h-3" /> {numFotos}
             </span>
           )}
           <span className="absolute inset-0 flex items-end justify-end p-2 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
@@ -417,8 +440,8 @@ function ReporteCard({ reporte, activo, onClick, onVerFotos }) {
         {reporte.descripcion && (
           <p className="text-xs text-gray-500 line-clamp-2">{reporte.descripcion}</p>
         )}
-        <div className="flex items-center gap-1 pt-0.5">
-          <span className="text-xs">{PRIO_EMOJI[reporte.prioridad] ?? '⚪'}</span>
+        <div className="flex items-center gap-1.5 pt-0.5">
+          <SevIcon priority={reporte.prioridad} />
           <span className="text-[11px] font-semibold capitalize" style={{ color }}>{reporte.prioridad}</span>
           {reporte.folio && <span className="ml-auto text-[10px] font-mono text-gray-300">{reporte.folio}</span>}
         </div>
@@ -481,10 +504,14 @@ export default function MisReportes({ onNuevoReporte }) {
             )}
           </div>
           <div className="flex gap-1">
-            {[{ id: 'mapa', label: '🗺 Mapa' }, { id: 'lista', label: '📋 Lista' }].map(t => (
+            {[
+              { id: 'mapa', label: 'Mapa', icon: <MapIcon className="w-3.5 h-3.5" /> }, 
+              { id: 'lista', label: 'Lista', icon: <ListIcon className="w-3.5 h-3.5" /> }
+            ].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors flex items-center gap-2
                   ${tab === t.id ? 'border-oaxaca-oro text-white' : 'border-transparent text-white/50'}`}>
+                {t.icon}
                 {t.label}
               </button>
             ))}
@@ -507,7 +534,9 @@ export default function MisReportes({ onNuevoReporte }) {
 
         {!cargando && !error && reportes.length === 0 && (
           <div className="text-center py-24 text-gray-400 px-4">
-            <div className="text-6xl mb-4">🗺️</div>
+            <div className="mb-4 flex justify-center">
+              <MapIcon className="w-16 h-16 opacity-20" />
+            </div>
             <p className="font-semibold text-lg">Sin reportes todavía</p>
             <p className="text-sm mt-1">¡Sé el primero en reportar un bache!</p>
           </div>
