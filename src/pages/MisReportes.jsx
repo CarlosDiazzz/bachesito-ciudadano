@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8001/api'
+const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+
+// Las URLs de storage llegan como "/storage/..." y el proxy de Vite
+// las redirige a Laravel, así que no hay que agregarles host.
+function resolveUrl(url) {
+  return url || null
+}
 
 const PRIO_COLOR  = { critica: '#9D2449', alta: '#C05621', media: '#B7791F', baja: '#276749' }
 const PRIO_EMOJI  = { critica: '🔴', alta: '🟠', media: '🟡', baja: '🟢' }
@@ -20,7 +26,7 @@ function popupHtml(r) {
   const color  = PRIO_COLOR[r.prioridad] ?? '#4A5568'
   const emoji  = PRIO_EMOJI[r.prioridad] ?? '⚪'
   const estado = ESTADO_CFG[r.estado]    ?? { label: r.estado }
-  const foto   = r.foto && !r.foto.includes('placehold') ? r.foto : null
+  const foto   = r.foto && !r.foto.includes('placehold') ? resolveUrl(r.foto) : null
 
   return `
     <div style="font-family:Inter,sans-serif;width:220px;overflow:hidden;border-radius:4px">
@@ -198,11 +204,177 @@ function PanelZona({ reportes }) {
   )
 }
 
-// ── Card de reporte ───────────────────────────────────────────────────────────
-function ReporteCard({ reporte, activo, onClick }) {
+// ── Galería de fotos (carrusel) ───────────────────────────────────────────────
+function GaleriaFotos({ fotos }) {
+  const [idx, setIdx] = useState(0)
+  const dragStart = useRef(null)
+
+  if (!fotos?.length) return null
+
+  const goTo = i => setIdx(Math.max(0, Math.min(fotos.length - 1, i)))
+
+  const onPointerDown = e => {
+    dragStart.current = e.clientX
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerUp = e => {
+    if (dragStart.current === null) return
+    const delta = dragStart.current - e.clientX
+    if (Math.abs(delta) > 40) goTo(idx + (delta > 0 ? 1 : -1))
+    dragStart.current = null
+  }
+
+  return (
+    <div
+      className="relative bg-black select-none overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+    >
+      <img
+        src={resolveUrl(fotos[idx])}
+        alt={`Foto ${idx + 1}`}
+        className="w-full h-64 object-cover pointer-events-none"
+        onError={e => {
+          e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='256' viewBox='0 0 400 256'%3E%3Crect width='400' height='256' fill='%231a1a1a'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14' fill='%23555' font-family='sans-serif'%3EFoto no disponible%3C/text%3E%3C/svg%3E"
+          e.currentTarget.onerror = null
+        }}
+      />
+
+      {fotos.length > 1 && (
+        <>
+          {idx > 0 && (
+            <button
+              onClick={() => goTo(idx - 1)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-9 h-9 rounded-full text-2xl flex items-center justify-center leading-none"
+            >‹</button>
+          )}
+          {idx < fotos.length - 1 && (
+            <button
+              onClick={() => goTo(idx + 1)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white w-9 h-9 rounded-full text-2xl flex items-center justify-center leading-none"
+            >›</button>
+          )}
+        </>
+      )}
+
+      {fotos.length > 1 && (
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+          {fotos.map((_, i) => (
+            <span
+              key={i}
+              className="block rounded-full transition-all duration-300"
+              style={{
+                width: i === idx ? '18px' : '6px',
+                height: '6px',
+                background: i === idx ? 'white' : 'rgba(255,255,255,0.45)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Sheet de detalle del bache ────────────────────────────────────────────────
+function DetalleSheet({ reporte, onClose }) {
+  if (!reporte) return null
+
   const color  = PRIO_COLOR[reporte.prioridad] ?? '#4A5568'
   const estado = ESTADO_CFG[reporte.estado]    ?? { label: reporte.estado, cls: 'bg-gray-100 text-gray-600' }
-  const foto   = reporte.foto && !reporte.foto.includes('placehold') ? reporte.foto : null
+  const fotos  = Array.isArray(reporte.fotos) && reporte.fotos.length
+    ? reporte.fotos
+    : (reporte.foto && !reporte.foto.includes('placehold') ? [reporte.foto] : [])
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-[201] bg-white rounded-t-3xl max-h-[88vh] overflow-y-auto shadow-2xl">
+
+        <div className="sticky top-0 bg-white z-10 pt-3 pb-1 flex justify-center">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
+        {fotos.length > 0
+          ? <GaleriaFotos fotos={fotos} />
+          : (
+            <div className="h-36 flex items-center justify-center bg-gray-100 text-gray-300 text-6xl">
+              🕳
+            </div>
+          )
+        }
+
+        <div className="px-5 py-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            {reporte.folio && (
+              <span className="font-mono text-[11px] text-gray-400">{reporte.folio}</span>
+            )}
+            <span className={`text-[10px] font-bold px-3 py-1 rounded-full ${estado.cls}`}>
+              {estado.label}
+            </span>
+          </div>
+
+          <div>
+            <p className="text-xl font-bold leading-tight" style={{ color }}>
+              {reporte.nombre_via ?? 'Sin nombre'}
+            </p>
+            {(reporte.colonia || reporte.municipio) && (
+              <p className="text-sm text-gray-500 mt-1">
+                {[reporte.colonia, reporte.municipio].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
+            <span className="text-xl">{PRIO_EMOJI[reporte.prioridad] ?? '⚪'}</span>
+            <div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Prioridad</p>
+              <p className="text-sm font-bold capitalize" style={{ color }}>{reporte.prioridad}</p>
+            </div>
+            {fotos.length > 0 && (
+              <span className="ml-auto text-[11px] text-gray-400 font-semibold">
+                📷 {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
+              </span>
+            )}
+          </div>
+
+          {reporte.descripcion && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Descripción</p>
+              <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
+                {reporte.descripcion}
+              </p>
+            </div>
+          )}
+
+          {reporte.direccion_aproximada && (
+            <p className="text-xs text-gray-400 flex gap-1.5 items-start">
+              <span className="shrink-0">📍</span>
+              <span>{reporte.direccion_aproximada}</span>
+            </p>
+          )}
+        </div>
+
+        <div className="px-5 pb-8">
+          <button
+            onClick={onClose}
+            className="w-full py-3.5 rounded-2xl border-2 border-gray-200 text-gray-500 font-bold text-sm active:bg-gray-50 transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Card de reporte ───────────────────────────────────────────────────────────
+function ReporteCard({ reporte, activo, onClick, onVerFotos }) {
+  const color    = PRIO_COLOR[reporte.prioridad] ?? '#4A5568'
+  const estado   = ESTADO_CFG[reporte.estado]    ?? { label: reporte.estado, cls: 'bg-gray-100 text-gray-600' }
+  const foto     = reporte.foto && !reporte.foto.includes('placehold') ? resolveUrl(reporte.foto) : null
+  const numFotos = reporte.fotos?.length ?? (foto ? 1 : 0)
 
   return (
     <button
@@ -212,7 +384,24 @@ function ReporteCard({ reporte, activo, onClick }) {
       }`}
       style={{ borderColor: activo ? color : '#E5E7EB' }}
     >
-      {foto && <img src={foto} alt="" className="w-full h-32 object-cover" onError={e => e.target.style.display = 'none'} />}
+      {foto && (
+        <div
+          className="relative"
+          onClick={e => { e.stopPropagation(); onVerFotos?.(reporte) }}
+        >
+          <img src={foto} alt="" className="w-full h-32 object-cover" onError={e => e.target.style.display = 'none'} />
+          {numFotos > 1 && (
+            <span className="absolute top-2 right-2 bg-black/55 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
+              📷 {numFotos}
+            </span>
+          )}
+          <span className="absolute inset-0 flex items-end justify-end p-2 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+            <span className="bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+              Ver fotos
+            </span>
+          </span>
+        </div>
+      )}
       <div className="bg-white px-4 py-3 space-y-1.5">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -252,11 +441,12 @@ function Skeleton() {
 
 // ── Vista principal ───────────────────────────────────────────────────────────
 export default function MisReportes({ onNuevoReporte }) {
-  const [reportes,     setReportes]     = useState([])
-  const [cargando,     setCargando]     = useState(true)
-  const [error,        setError]        = useState(null)
-  const [seleccionado, setSeleccionado] = useState(null)
-  const [tab,          setTab]          = useState('mapa')
+  const [reportes,       setReportes]       = useState([])
+  const [cargando,       setCargando]       = useState(true)
+  const [error,          setError]          = useState(null)
+  const [seleccionado,   setSeleccionado]   = useState(null)
+  const [tab,            setTab]            = useState('mapa')
+  const [detalleReporte, setDetalleReporte] = useState(null)
 
   useEffect(() => {
     fetch(`${API_BASE}/reportes/mapa`, { headers: { Accept: 'application/json' } })
@@ -354,7 +544,7 @@ export default function MisReportes({ onNuevoReporte }) {
                 <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory">
                   {validos.map(r => (
                     <div key={r.id} className="snap-start shrink-0 w-64">
-                      <ReporteCard reporte={r} activo={seleccionado?.id === r.id} onClick={() => handleSelect(r)} />
+                      <ReporteCard reporte={r} activo={seleccionado?.id === r.id} onClick={() => handleSelect(r)} onVerFotos={setDetalleReporte} />
                     </div>
                   ))}
                 </div>
@@ -367,7 +557,7 @@ export default function MisReportes({ onNuevoReporte }) {
         {!cargando && !error && reportes.length > 0 && tab === 'lista' && (
           <div className="px-4 pt-4 space-y-3">
             {reportes.map(r => (
-              <ReporteCard key={r.id} reporte={r} activo={seleccionado?.id === r.id} onClick={() => { handleSelect(r); setTab('mapa') }} />
+              <ReporteCard key={r.id} reporte={r} activo={seleccionado?.id === r.id} onClick={() => { handleSelect(r); setTab('mapa') }} onVerFotos={setDetalleReporte} />
             ))}
           </div>
         )}
@@ -382,6 +572,10 @@ export default function MisReportes({ onNuevoReporte }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       </button>
+
+      {detalleReporte && (
+        <DetalleSheet reporte={detalleReporte} onClose={() => setDetalleReporte(null)} />
+      )}
     </div>
   )
 }

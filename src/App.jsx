@@ -8,7 +8,7 @@ import { useReporteStatusNotifications } from './hooks/useReporteStatusNotificat
 export default function App() {
   const [view, setView] = useState('splash') // splash, camera, form, mis-reportes
   const [capturedPhoto, setCapturedPhoto] = useState(null)
-  const reportesStatusUrl = import.meta.env.VITE_REPORTES_STATUS_URL || '/api/reportes?per_page=100&mine=1'
+  const reportesStatusUrl = import.meta.env.VITE_REPORTES_STATUS_URL || null
 
   useReporteStatusNotifications(reportesStatusUrl)
 
@@ -18,7 +18,7 @@ export default function App() {
   }, [])
 
   if (view === 'splash') {
-    return <SplashScreen onFinish={() => setView('camera')} />
+    return <SplashScreen onFinish={() => setView('mis-reportes')} />
   }
 
   if (view === 'camera') {

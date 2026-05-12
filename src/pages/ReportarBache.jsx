@@ -2,7 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import logo from '../assets/logo.png'
 import { requestSystemNotificationPermission, showSystemNotification } from '../utils/systemNotifications'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8001/api'
+const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+
+function resolveImgUrl(url) {
+  return url || null
+}
 
 const SEV_COLOR  = { alta: '#9D2449', media: '#B7791F', baja: '#276749' }
 const SEV_BG     = { alta: '#FFF5F5', media: '#FFFAF0', baja: '#F0FFF4' }
@@ -92,6 +96,82 @@ async function reverseGeocode(lat, lng) {
       display:  data.display_name ?? '',
     }
   } catch { return null }
+}
+
+// ── Card de bache duplicado ───────────────────────────────────────────────────
+const DUP_PRIO_COLOR = { critica: '#9D2449', alta: '#C05621', media: '#B7791F', baja: '#276749' }
+const DUP_ESTADO_LABEL = {
+  pendiente: 'Pendiente', validado: 'Validado', asignado: 'Asignado',
+  en_proceso: 'En proceso', resuelto: 'Resuelto',
+}
+
+function DuplicadoCard({ duplicados, onAgregarFoto, onDescartar, enviando }) {
+  const principal = duplicados[0]
+  const foto = principal.foto && !principal.foto.includes('placehold')
+    ? resolveImgUrl(principal.foto) : null
+
+  return (
+    <div className="rounded-2xl overflow-hidden border-2 border-oaxaca-guinda shadow-lg">
+      <div className="bg-oaxaca-guinda px-4 py-3 flex items-center gap-3">
+        <span className="text-2xl">🔍</span>
+        <div className="flex-1">
+          <p className="text-white font-bold text-sm">¡Bache ya reportado cerca!</p>
+          <p className="text-white/70 text-xs">
+            A {principal.distancia_m}m · ¿Es el mismo bache?
+          </p>
+        </div>
+        {duplicados.length > 1 && (
+          <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">
+            +{duplicados.length - 1} más
+          </span>
+        )}
+      </div>
+
+      <div className="bg-white">
+        {foto && (
+          <img src={foto} alt="" className="w-full h-40 object-cover"
+            onError={e => { e.target.style.display = 'none' }} />
+        )}
+        <div className="px-4 py-3 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-bold text-sm truncate"
+              style={{ color: DUP_PRIO_COLOR[principal.prioridad] ?? '#4A5568' }}>
+              {principal.nombre_via ?? 'Sin nombre'}
+            </p>
+            <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full shrink-0">
+              {DUP_ESTADO_LABEL[principal.estado] ?? principal.estado}
+            </span>
+          </div>
+          {principal.folio && (
+            <p className="text-[11px] font-mono text-gray-400">{principal.folio}</p>
+          )}
+          {principal.descripcion && (
+            <p className="text-xs text-gray-500 line-clamp-2">{principal.descripcion}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-gray-50 border-t border-gray-100 px-4 py-3 space-y-2">
+        <button
+          onClick={() => onAgregarFoto(principal)}
+          disabled={enviando}
+          className="w-full py-3 rounded-xl bg-oaxaca-guinda text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
+        >
+          {enviando
+            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enviando foto…</>
+            : <>📷 Sí, agregar mi foto a este reporte</>
+          }
+        </button>
+        <button
+          onClick={onDescartar}
+          disabled={enviando}
+          className="w-full py-2.5 rounded-xl border border-gray-300 text-gray-500 font-semibold text-sm active:scale-95 transition-transform disabled:opacity-40"
+        >
+          No, es un bache diferente
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ── Mini mapa de pin ──────────────────────────────────────────────────────────
@@ -243,6 +323,11 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
   const [folio,     setFolio]     = useState(null)
   const [errorEnvio,setErrorEnvio]= useState(null)
 
+  // Detección de duplicados
+  const [duplicados,  setDuplicados]  = useState([])
+  const [dupEstado,   setDupEstado]   = useState(null) // null | buscando | encontrado | descartado | enviando
+  const [fotoAgregada,setFotoAgregada]= useState(false)
+
   const fileRef = useRef()
 
   const formularioHabilitado = aiEstado === 'bache' || aiEstado === 'error'
@@ -288,13 +373,56 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     }
   }
 
+  async function buscarDuplicados(la, lo) {
+    setDupEstado('buscando')
+    try {
+      const res = await fetch(
+        `${API_BASE}/reportes/cercanos?lat=${la}&lng=${lo}&radio=80`,
+        { headers: { Accept: 'application/json' } }
+      )
+      if (!res.ok) { setDupEstado(null); return }
+      const data = await res.json()
+      if (Array.isArray(data) && data.length > 0) {
+        setDuplicados(data)
+        setDupEstado('encontrado')
+      } else {
+        setDupEstado(null)
+      }
+    } catch {
+      setDupEstado(null)
+    }
+  }
+
+  async function agregarFotoAExistente(reporte) {
+    if (!foto) return
+    setDupEstado('enviando')
+    const fd = new FormData()
+    fd.append('foto', foto)
+    try {
+      const res = await fetch(`${API_BASE}/reportes/${reporte.id}/fotos/ciudadano`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: fd,
+      })
+      if (!res.ok) throw new Error()
+      setFolio(reporte.folio)
+      setFotoAgregada(true)
+      setEnviado(true)
+    } catch {
+      setDupEstado('encontrado')
+    }
+  }
+
   async function aplicarCoordenadas(la, lo, fuente) {
     setLat(la); setLng(lo)
     setLocEstado(fuente)
-    const geo = await reverseGeocode(la, lo)
+    const [geo] = await Promise.all([
+      reverseGeocode(la, lo),
+      buscarDuplicados(la, lo),
+    ])
     if (geo) {
-      if (geo.calle    && !calle)     setCalle(geo.calle)
-      if (geo.colonia  && !colonia)   setColonia(geo.colonia)
+      if (geo.calle     && !calle)     setCalle(geo.calle)
+      if (geo.colonia   && !colonia)   setColonia(geo.colonia)
       if (geo.municipio && !municipio) setMunicipio(geo.municipio)
     }
   }
@@ -330,6 +458,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     setAiEstado(null); setAiResult(null); setAiError(null)
     setLat(null); setLng(null); setLocEstado(null)
     setCalle(''); setColonia(''); setMunicipio('')
+    setDuplicados([]); setDupEstado(null)
   }
 
   async function handleSubmit() {
@@ -375,6 +504,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     setLat(null); setLng(null); setLocEstado(null)
     setCalle(''); setColonia(''); setMunicipio(''); setDesc('')
     setEnviado(false); setFolio(null); setErrorEnvio(null)
+    setDuplicados([]); setDupEstado(null); setFotoAgregada(false)
   }
 
   // ── Pantalla de éxito ────────────────────────────────────────────────────
@@ -382,19 +512,28 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     <div className="min-h-screen bg-oaxaca-crema flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center border-t-4 border-oaxaca-guinda">
         <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          {fotoAgregada
+            ? <span className="text-4xl">📷</span>
+            : <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+          }
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-1">¡Reporte enviado!</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-1">
+          {fotoAgregada ? '¡Foto añadida!' : '¡Reporte enviado!'}
+        </h2>
         {folio && <p className="text-xs font-mono text-oaxaca-guinda mb-3 bg-oaxaca-crema px-3 py-1 rounded-full inline-block">{folio}</p>}
-        {aiResult?.severidad_ia && (
+        {!fotoAgregada && aiResult?.severidad_ia && (
           <div className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold"
             style={{ background: SEV_BG[aiResult.severidad_ia], color: SEV_COLOR[aiResult.severidad_ia], border: `1px solid ${SEV_BORDER[aiResult.severidad_ia]}` }}>
             {SEV_EMOJI[aiResult.severidad_ia]} Severidad {aiResult.severidad_ia} registrada
           </div>
         )}
-        <p className="text-gray-500 mb-6">Gracias por tu reporte. Las autoridades lo atenderán a la brevedad.</p>
+        <p className="text-gray-500 mb-6">
+          {fotoAgregada
+            ? 'Tu foto fue agregada al reporte existente. ¡Gracias por contribuir!'
+            : 'Gracias por tu reporte. Las autoridades lo atenderán a la brevedad.'}
+        </p>
         <button onClick={handleNuevo}
           className="w-full bg-oaxaca-guinda text-white font-semibold py-3 rounded-xl shadow-lg active:scale-95 transition-transform">
           Reportar otro bache
@@ -482,8 +621,34 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileInput} />
         </section>
 
-        {/* ── Paso 2: Ubicación (solo si IA validó) ── */}
-        {formularioHabilitado && (
+        {/* ── Bache duplicado detectado ── */}
+        {formularioHabilitado && dupEstado === 'buscando' && (
+          <div className="flex items-center gap-3 bg-blue-50 rounded-2xl px-4 py-3 border border-blue-100">
+            <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin shrink-0" />
+            <p className="text-xs text-blue-700 font-medium">Verificando si ya existe un reporte cerca…</p>
+          </div>
+        )}
+
+        {formularioHabilitado && dupEstado === 'encontrado' && (
+          <DuplicadoCard
+            duplicados={duplicados}
+            onAgregarFoto={agregarFotoAExistente}
+            onDescartar={() => setDupEstado('descartado')}
+            enviando={false}
+          />
+        )}
+
+        {formularioHabilitado && dupEstado === 'enviando' && (
+          <DuplicadoCard
+            duplicados={duplicados}
+            onAgregarFoto={() => {}}
+            onDescartar={() => {}}
+            enviando={true}
+          />
+        )}
+
+        {/* ── Paso 2: Ubicación (solo si IA validó y no hay duplicado pendiente) ── */}
+        {formularioHabilitado && dupEstado !== 'encontrado' && dupEstado !== 'enviando' && (
           <section className="bg-white rounded-2xl shadow-md p-5 border border-oaxaca-crema-dark space-y-4">
             <h2 className="font-bold text-oaxaca-guinda flex items-center gap-2">
               <span className="w-6 h-6 bg-oaxaca-guinda text-white rounded-md flex items-center justify-center text-xs font-bold">2</span>
@@ -567,7 +732,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
         )}
 
         {/* ── Paso 3: Descripción ── */}
-        {formularioHabilitado && (
+        {formularioHabilitado && dupEstado !== 'encontrado' && dupEstado !== 'enviando' && (
           <section className="bg-white rounded-2xl shadow-md p-5 border border-oaxaca-crema-dark">
             <h2 className="font-bold text-oaxaca-guinda mb-4 flex items-center gap-2">
               <span className="w-6 h-6 bg-oaxaca-guinda text-white rounded-md flex items-center justify-center text-xs font-bold">3</span>
@@ -580,7 +745,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
         )}
 
         {/* ── Botón enviar ── */}
-        {formularioHabilitado && (
+        {formularioHabilitado && dupEstado !== 'encontrado' && dupEstado !== 'enviando' && (
           <div className="pb-4 space-y-2">
             {!tieneUbicacion && (
               <p className="text-xs text-center text-amber-600 font-medium">⚠️ Marca la ubicación en el mapa para continuar</p>
