@@ -1,4 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { 
+  Camera, 
+  Search, 
+  AlertTriangle, 
+  XCircle, 
+  CheckCircle2, 
+  Ruler, 
+  Maximize, 
+  MapPin, 
+  Radio, 
+  Navigation,
+  Ban
+} from 'lucide-react'
 import logo from '../assets/logo.png'
 import { requestSystemNotificationPermission, showSystemNotification } from '../utils/systemNotifications'
 
@@ -19,7 +32,11 @@ function resolveImgUrl(url) {
 const SEV_COLOR  = { alta: '#9D2449', media: '#B7791F', baja: '#276749' }
 const SEV_BG     = { alta: '#FFF5F5', media: '#FFFAF0', baja: '#F0FFF4' }
 const SEV_BORDER = { alta: '#FEB2B2', media: '#F6E05E', baja: '#9AE6B4' }
-const SEV_EMOJI  = { alta: '🔴', media: '🟡', baja: '🟢' }
+
+const SevIcon = ({ sev, className }) => {
+  const colors = { alta: 'text-red-600', media: 'text-amber-500', baja: 'text-green-600' }
+  return <div className={`w-3 h-3 rounded-full bg-current ${colors[sev] || 'text-gray-400'} ${className}`} />
+}
 
 // ── Helpers EXIF ─────────────────────────────────────────────────────────────
 function readExif(file) {
@@ -121,7 +138,7 @@ function DuplicadoCard({ duplicados, onAgregarFoto, onDescartar, enviando }) {
   return (
     <div className="rounded-2xl overflow-hidden border-2 border-oaxaca-guinda shadow-lg">
       <div className="bg-oaxaca-guinda px-4 py-3 flex items-center gap-3">
-        <span className="text-2xl">🔍</span>
+        <Search className="w-6 h-6 text-white" />
         <div className="flex-1">
           <p className="text-white font-bold text-sm">¡Bache ya reportado cerca!</p>
           <p className="text-white/70 text-xs">
@@ -167,7 +184,7 @@ function DuplicadoCard({ duplicados, onAgregarFoto, onDescartar, enviando }) {
         >
           {enviando
             ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enviando foto…</>
-            : <>📷 Sí, agregar mi foto a este reporte</>
+            : <><Camera className="w-4 h-4" /> Sí, agregar mi foto a este reporte</>
           }
         </button>
         <button
@@ -246,7 +263,7 @@ function AiCard({ estado, resultado, error }) {
   )
   if (estado === 'error') return (
     <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4 flex gap-3 items-start">
-      <span className="text-xl mt-0.5">⚠️</span>
+      <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
       <div>
         <p className="font-bold text-amber-700 text-sm">No se pudo verificar la imagen</p>
         <p className="text-xs text-gray-500 mt-1">
@@ -258,14 +275,16 @@ function AiCard({ estado, resultado, error }) {
   if (estado === 'no-bache') return (
     <div className="mt-4 rounded-2xl bg-red-50 border border-red-300 p-4">
       <div className="flex gap-3 items-start">
-        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0 text-xl">❌</div>
+        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+          <XCircle className="w-6 h-6 text-red-600" />
+        </div>
         <div>
           <p className="font-bold text-red-700">No se pudo identificar un bache</p>
           <p className="text-sm text-red-600 mt-1">Asegúrate de que la foto muestre claramente el daño en la vía.</p>
         </div>
       </div>
-      <p className="mt-3 bg-red-100 rounded-xl p-3 text-xs text-red-700 font-medium">
-        📷 Toma la foto de frente al bache, con buena luz.
+      <p className="mt-3 bg-red-100 rounded-xl p-3 text-xs text-red-700 font-medium flex items-center gap-2">
+        <Camera className="w-4 h-4" /> Toma la foto de frente al bache, con buena luz.
       </p>
     </div>
   )
@@ -274,9 +293,11 @@ function AiCard({ estado, resultado, error }) {
     return (
       <div className="mt-4 rounded-2xl overflow-hidden border" style={{ borderColor: SEV_BORDER[sev] ?? '#CBD5E0' }}>
         <div className="flex items-center gap-3 px-4 py-3" style={{ background: SEV_BG[sev] ?? '#EDF2F7' }}>
-          <span className="text-2xl">{SEV_EMOJI[sev] ?? '🔵'}</span>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white shadow-sm">
+            <CheckCircle2 className="w-5 h-5" style={{ color: SEV_COLOR[sev] }} />
+          </div>
           <div className="flex-1">
-            <p className="font-bold text-sm" style={{ color: SEV_COLOR[sev] }}>✅ Bache detectado</p>
+            <p className="font-bold text-sm" style={{ color: SEV_COLOR[sev] }}>Bache detectado</p>
             <p className="text-xs text-gray-500">Nivel de daño registrado</p>
           </div>
           <span className="text-xs font-black text-white px-3 py-1 rounded-full capitalize" style={{ background: SEV_COLOR[sev] }}>
@@ -285,12 +306,12 @@ function AiCard({ estado, resultado, error }) {
         </div>
         <div className="grid grid-cols-3 text-center divide-x bg-gray-50">
           {[
-            { icon: '📏', label: 'Profundidad', val: resultado.profundidad_estimada_cm ? `${resultado.profundidad_estimada_cm}cm` : '—' },
-            { icon: '📐', label: 'Área',        val: resultado.area_estimada_m2        ? `${resultado.area_estimada_m2}m²`        : '—' },
-            { icon: '⚠️',  label: 'Severidad',  val: sev ? sev.charAt(0).toUpperCase() + sev.slice(1) : '—' },
+            { icon: <Ruler className="w-5 h-5 mx-auto" />, label: 'Profundidad', val: resultado.profundidad_estimada_cm ? `${resultado.profundidad_estimada_cm}cm` : '—' },
+            { icon: <Maximize className="w-5 h-5 mx-auto" />, label: 'Área',        val: resultado.area_estimada_m2        ? `${resultado.area_estimada_m2}m²`        : '—' },
+            { icon: <AlertTriangle className="w-5 h-5 mx-auto" />,  label: 'Severidad',  val: sev ? sev.charAt(0).toUpperCase() + sev.slice(1) : '—' },
           ].map(({ icon, label, val }) => (
             <div key={label} className="py-3 px-1">
-              <div className="text-base">{icon}</div>
+              <div className="text-gray-400 mb-1">{icon}</div>
               <div className="font-black text-sm mt-0.5" style={{ color: SEV_COLOR[sev] }}>{val}</div>
               <div className="text-[9px] text-gray-400 uppercase tracking-wider">{label}</div>
             </div>
@@ -536,10 +557,8 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center border-t-4 border-oaxaca-guinda">
         <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
           {fotoAgregada
-            ? <span className="text-4xl">📷</span>
-            : <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+            ? <Camera className="w-10 h-10 text-green-600" />
+            : <CheckCircle2 className="w-10 h-10 text-green-600" />
           }
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-1">
@@ -549,7 +568,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
         {!fotoAgregada && aiResult?.severidad_ia && (
           <div className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold"
             style={{ background: SEV_BG[aiResult.severidad_ia], color: SEV_COLOR[aiResult.severidad_ia], border: `1px solid ${SEV_BORDER[aiResult.severidad_ia]}` }}>
-            {SEV_EMOJI[aiResult.severidad_ia]} Severidad {aiResult.severidad_ia} registrada
+            <SevIcon sev={aiResult.severidad_ia} /> Severidad {aiResult.severidad_ia} registrada
           </div>
         )}
         <p className="text-gray-500 mb-6">
@@ -609,7 +628,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
               {aiEstado === 'no-bache' && (
                 <button type="button" onClick={onRetake}
                   className="mt-3 w-full py-3 rounded-xl border-2 border-oaxaca-guinda text-oaxaca-guinda font-bold text-sm active:scale-95 transition-transform">
-                  📷 Tomar otra foto
+                  <Camera className="w-4 h-4 inline-block mr-2" /> Tomar otra foto
                 </button>
               )}
             </>
@@ -620,21 +639,14 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
                 <button type="button" onClick={onRetake}
                   className="flex-1 h-44 border-2 border-dashed border-oaxaca-guinda/40 rounded-xl flex flex-col items-center justify-center gap-3 hover:bg-oaxaca-crema active:scale-95 transition-all group">
                   <div className="w-14 h-14 bg-white shadow-sm rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <svg className="w-7 h-7 text-oaxaca-guinda" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    <Camera className="w-7 h-7 text-oaxaca-guinda" />
                   </div>
                   <span className="text-xs font-bold uppercase tracking-widest text-oaxaca-guinda/80">Tomar foto</span>
                 </button>
                 <button type="button" onClick={() => fileRef.current?.click()}
                   className="w-28 h-44 rounded-xl bg-white border border-oaxaca-crema-dark flex flex-col items-center justify-center gap-2 shadow-sm hover:shadow-md active:scale-95 transition-all group">
                   <div className="w-10 h-10 bg-oaxaca-crema rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-oaxaca-oro" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <Maximize className="w-6 h-6 text-oaxaca-oro" />
                   </div>
                   <span className="text-[9px] font-bold uppercase tracking-tighter text-oaxaca-oro">Galería</span>
                 </button>
@@ -688,24 +700,24 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
             )}
             {locEstado === 'exif' && (
               <div className="flex items-center gap-2 bg-green-50 rounded-xl p-3 border border-green-200 text-xs text-green-700 font-medium">
-                <span>📍</span> Ubicación detectada automáticamente desde la foto
+                <MapPin className="w-4 h-4" /> Ubicación detectada automáticamente desde la foto
               </div>
             )}
             {locEstado === 'gps' && (
               <div className="flex items-center gap-2 bg-green-50 rounded-xl p-3 border border-green-200 text-xs text-green-700 font-medium">
-                <span>📡</span> Ubicación obtenida por GPS del dispositivo
+                <Radio className="w-4 h-4" /> Ubicación obtenida por GPS del dispositivo
               </div>
             )}
             {locEstado === 'manual' && !fueraDeZona && (
               <div className="flex items-center gap-2 bg-amber-50 rounded-xl p-3 border border-amber-200 text-xs text-amber-700 font-medium">
-                <span>📌</span> Ubicación marcada manualmente
+                <MapPin className="w-4 h-4" /> Ubicación marcada manualmente
               </div>
             )}
 
             {fueraDeZona && (
               <div className="rounded-xl p-4 border-2 border-red-400 bg-red-50 space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">🚫</span>
+                  <Ban className="w-5 h-5 text-red-700" />
                   <p className="text-sm font-bold text-red-700">Ubicación fuera del área de cobertura</p>
                 </div>
                 <p className="text-xs text-red-600 leading-relaxed">
@@ -727,7 +739,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
             {/* Mapa de confirmación / selección */}
             {tieneUbicacion ? (
               <>
-                <p className="text-xs text-gray-400">Arrastra el pin o toca el mapa para ajustar la ubicación exacta</p>
+                <p className="text-xs text-gray-400">Arrastra the pin or touch the map to adjust the exact location</p>
                 <PinMap lat={lat} lng={lng} onChange={handleMapChange} />
                 <p className="text-[10px] text-gray-400 text-center font-mono">
                   {lat.toFixed(6)}, {lng.toFixed(6)}
@@ -735,7 +747,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
               </>
             ) : locEstado !== 'detectando' ? (
               <>
-                <p className="text-xs text-gray-400">Toca el mapa para marcar la ubicación del bache</p>
+                <p className="text-xs text-gray-400">Touch the map to mark the location of the pothole</p>
                 <PinMap lat={17.0665} lng={-96.7213} onChange={handleMapChange} />
               </>
             ) : null}
@@ -763,7 +775,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
               {(locEstado === 'fallo' || !locEstado) && (
                 <button type="button" onClick={pedirGPS}
                   className="w-full py-2.5 rounded-xl border border-oaxaca-guinda text-oaxaca-guinda text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                  <span>📡</span> Usar mi ubicación actual
+                  <Radio className="w-4 h-4" /> Usar mi ubicación actual
                 </button>
               )}
             </div>
@@ -787,10 +799,14 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
         {formularioHabilitado && dupEstado !== 'encontrado' && dupEstado !== 'enviando' && (
           <div className="pb-4 space-y-2">
             {!tieneUbicacion && (
-              <p className="text-xs text-center text-amber-600 font-medium">⚠️ Marca la ubicación en el mapa para continuar</p>
+              <p className="text-xs text-center text-amber-600 font-medium flex items-center justify-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" /> Marca la ubicación en el mapa para continuar
+              </p>
             )}
             {fueraDeZona && (
-              <p className="text-xs text-center text-red-600 font-bold">🚫 No se puede reportar fuera del municipio de Oaxaca de Juárez</p>
+              <p className="text-xs text-center text-red-600 font-bold flex items-center justify-center gap-1.5">
+                <Ban className="w-3.5 h-3.5" /> No se puede reportar fuera del municipio de Oaxaca de Juárez
+              </p>
             )}
             {errorEnvio && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 text-center">{errorEnvio}</div>
@@ -799,9 +815,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
               className="w-full bg-oaxaca-guinda disabled:bg-gray-300 text-white font-bold py-4 rounded-2xl text-base uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl active:scale-[0.98] transition-transform">
               {enviando
                 ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enviando…</>
-                : <><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>Enviar Reporte</>
+                : <><Navigation className="w-5 h-5" />Enviar Reporte</>
               }
             </button>
           </div>
@@ -812,7 +826,9 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
           <p className="text-center text-xs text-gray-400 pb-4">El formulario se habilitará una vez que se verifique la foto</p>
         )}
         {!foto && !aiEstado && (
-          <p className="text-center text-xs text-gray-400 pb-4">📸 Primero toma o sube una foto del bache para continuar</p>
+          <p className="text-center text-xs text-gray-400 pb-4 flex items-center justify-center gap-1.5">
+            <Camera className="w-3.5 h-3.5" /> Primero toma o sube una foto del bache para continuar
+          </p>
         )}
       </main>
     </div>
