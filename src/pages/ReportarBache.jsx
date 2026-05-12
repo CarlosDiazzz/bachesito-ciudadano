@@ -4,6 +4,14 @@ import { requestSystemNotificationPermission, showSystemNotification } from '../
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
 
+// Bounding box del municipio de Oaxaca de Juárez y área metropolitana
+const OAXACA_BOUNDS = { latMin: 16.90, latMax: 17.25, lngMin: -96.95, lngMax: -96.50 }
+
+function enOaxaca(lat, lng) {
+  return lat >= OAXACA_BOUNDS.latMin && lat <= OAXACA_BOUNDS.latMax
+      && lng >= OAXACA_BOUNDS.lngMin && lng <= OAXACA_BOUNDS.lngMax
+}
+
 function resolveImgUrl(url) {
   return url || null
 }
@@ -328,11 +336,14 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
   const [dupEstado,   setDupEstado]   = useState(null) // null | buscando | encontrado | descartado | enviando
   const [fotoAgregada,setFotoAgregada]= useState(false)
 
+  // Validación geográfica
+  const [fueraDeZona, setFueraDeZona] = useState(false)
+
   const fileRef = useRef()
 
   const formularioHabilitado = aiEstado === 'bache' || aiEstado === 'error'
   const tieneUbicacion       = lat !== null && lng !== null
-  const puedeEnviar          = formularioHabilitado && tieneUbicacion && !enviando
+  const puedeEnviar          = formularioHabilitado && tieneUbicacion && !enviando && !fueraDeZona
 
   // ── Al llegar foto desde cámara, procesarla ───────────────────────────────
   useEffect(() => {
@@ -416,6 +427,13 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
   async function aplicarCoordenadas(la, lo, fuente) {
     setLat(la); setLng(lo)
     setLocEstado(fuente)
+
+    if (!enOaxaca(la, lo)) {
+      setFueraDeZona(true)
+      return
+    }
+    setFueraDeZona(false)
+
     const [geo] = await Promise.all([
       reverseGeocode(la, lo),
       buscarDuplicados(la, lo),
@@ -440,6 +458,11 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
   const handleMapChange = useCallback(async (la, lo) => {
     setLat(la); setLng(lo)
     setLocEstado('manual')
+    if (!enOaxaca(la, lo)) {
+      setFueraDeZona(true)
+      return
+    }
+    setFueraDeZona(false)
     const geo = await reverseGeocode(la, lo)
     if (geo) {
       setCalle(geo.calle || calle)
@@ -458,7 +481,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     setAiEstado(null); setAiResult(null); setAiError(null)
     setLat(null); setLng(null); setLocEstado(null)
     setCalle(''); setColonia(''); setMunicipio('')
-    setDuplicados([]); setDupEstado(null)
+    setDuplicados([]); setDupEstado(null); setFueraDeZona(false)
   }
 
   async function handleSubmit() {
@@ -504,7 +527,7 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     setLat(null); setLng(null); setLocEstado(null)
     setCalle(''); setColonia(''); setMunicipio(''); setDesc('')
     setEnviado(false); setFolio(null); setErrorEnvio(null)
-    setDuplicados([]); setDupEstado(null); setFotoAgregada(false)
+    setDuplicados([]); setDupEstado(null); setFotoAgregada(false); setFueraDeZona(false)
   }
 
   // ── Pantalla de éxito ────────────────────────────────────────────────────
@@ -673,9 +696,25 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
                 <span>📡</span> Ubicación obtenida por GPS del dispositivo
               </div>
             )}
-            {locEstado === 'manual' && (
+            {locEstado === 'manual' && !fueraDeZona && (
               <div className="flex items-center gap-2 bg-amber-50 rounded-xl p-3 border border-amber-200 text-xs text-amber-700 font-medium">
                 <span>📌</span> Ubicación marcada manualmente
+              </div>
+            )}
+
+            {fueraDeZona && (
+              <div className="rounded-xl p-4 border-2 border-red-400 bg-red-50 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🚫</span>
+                  <p className="text-sm font-bold text-red-700">Ubicación fuera del área de cobertura</p>
+                </div>
+                <p className="text-xs text-red-600 leading-relaxed">
+                  Este sistema solo acepta reportes dentro del municipio de <strong>Oaxaca de Juárez</strong>.
+                  Tu ubicación actual no está en la zona de servicio.
+                </p>
+                <p className="text-[11px] text-red-500 font-medium">
+                  Si el pin está mal colocado, arrástralo a la ubicación correcta dentro de Oaxaca.
+                </p>
               </div>
             )}
             {locEstado === 'fallo' && !tieneUbicacion && (
@@ -749,6 +788,9 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
           <div className="pb-4 space-y-2">
             {!tieneUbicacion && (
               <p className="text-xs text-center text-amber-600 font-medium">⚠️ Marca la ubicación en el mapa para continuar</p>
+            )}
+            {fueraDeZona && (
+              <p className="text-xs text-center text-red-600 font-bold">🚫 No se puede reportar fuera del municipio de Oaxaca de Juárez</p>
             )}
             {errorEnvio && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 text-center">{errorEnvio}</div>
