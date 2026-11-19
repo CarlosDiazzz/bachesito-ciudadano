@@ -515,6 +515,9 @@ export default function ReportarBache({ initialPhoto = null, onRetake }) {
     fd.append('nombre_via', calle || 'Sin nombre')
     fd.append('descripcion', desc)
     fd.append('direccion_aproximada', [calle, colonia, municipio].filter(Boolean).join(', '))
+    // Campos separados para que el backend busque la colonia y el municipio en su catálogo
+    if (colonia.trim())   fd.append('colonia', colonia.trim())
+    if (municipio.trim()) fd.append('municipio', municipio.trim())
     fd.append('location_source', locEstado ?? 'manual')
     if (foto) fd.append('foto', foto)
 
